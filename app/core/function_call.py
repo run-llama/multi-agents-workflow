@@ -31,7 +31,7 @@ class FunctionCallingAgent(Workflow):
         tools: List[BaseTool] | None = None,
         system_prompt: str | None = None,
         verbose: bool = True,
-        timeout: float = 120.0,
+        timeout: float = 360.0,
         name: str,
         **kwargs: Any,
     ) -> None:
