@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 
 from llama_index.core.llms.function_calling import FunctionCallingLLM
 from llama_index.core.memory import ChatMemoryBuffer
@@ -33,11 +33,13 @@ class FunctionCallingAgent(Workflow):
         verbose: bool = False,
         timeout: float = 360.0,
         name: str,
+        role: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, verbose=verbose, timeout=timeout, **kwargs)
         self.tools = tools or []
         self.name = name
+        self.role = role
 
         if llm is None:
             llm = Settings.llm
