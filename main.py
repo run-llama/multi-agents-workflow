@@ -2,7 +2,7 @@
 import asyncio
 import os
 from dotenv import load_dotenv
-from app.core.agent_call import AgentCallingAgent
+from app.core.agent_call import AgentCallingAgent, AgentOrchestrator
 from app.core.function_call import FunctionCallingAgent
 from app.engine.index import get_index
 from app.settings import init_settings
@@ -34,25 +34,41 @@ def get_query_engine_tool() -> QueryEngineTool:
     )
 
 
+def create_choreography(researcher, reviewer):
+    return AgentCallingAgent(
+        name="writer",
+        agents=[researcher, reviewer],
+        system_prompt="""You are an expert in writing blog posts. You are given a task to write a blog post. Before starting to write the post, consult the researcher agent to get the information you need. Don't make up any information yourself.
+        After creating a draft for the post, send it to the reviewer agent to receive some feedback and make sure to incorporate the feedback from the reviewer.
+        You can consult the reviewer and researcher multiple times. Only finish the task once the reviewer is satisfied.""",
+    )
+
+
+def create_orchestrator(researcher, reviewer):
+    writer = FunctionCallingAgent(
+        name="writer",
+        system_prompt="""You are an expert in writing blog posts. You are given a task to write a blog post. Don't make up any information yourself. If you don't have the necessary information to write a blog post, reply "I need information about the topic to write the blog post". If you have all the information needed, write the blog post.""",
+    )
+    return AgentOrchestrator(
+        agents=[writer, reviewer, researcher],
+    )
+
+
 async def main():
     researcher = FunctionCallingAgent(
         name="researcher",
         tools=[get_query_engine_tool()],
         system_prompt="You are a researcher agent. You are given a researching task. You must use your tools to complete the research.",
     )
-    reviewer = AgentCallingAgent(
+    reviewer = FunctionCallingAgent(
         name="reviewer",
-        system_prompt="You are an expert in reviewing blog posts. You are given a task to write a blog post. Before starting to write the post, consult the researcher agent to get the information you need. Don't make up any information yourself.",
+        system_prompt="You are an expert in reviewing blog posts. You are given a task to review a blog post. Review the post for logical inconsistencies, ask critical questions, and provide suggestions for improvement. Furthermore, proofread the post for grammar and spelling errors. If the post is good, you can say 'The post is good.'",
     )
-    writer = AgentCallingAgent(
-        name="writer",
-        agents=[researcher, reviewer],
-        verbose=False,
-        system_prompt="""You are an expert in writing blog posts. You are given a task to write a blog post. Before starting to write the post, consult the researcher agent to get the information you need. Don't make up any information yourself.
-        After creating a draft for the post, send it to the reviewer agent to receive some feedback and make sure to incorporate the feedback from the reviewer.
-        You can consult the reviewer and researcher multiple times. Only finish the task once the reviewer is satisfied.""",
+    # agent = create_choreography(researcher, reviewer)
+    agent = create_orchestrator(researcher, reviewer)
+    ret = await agent.run(
+        input="Write a blog post about physical standards for letters"
     )
-    ret = await writer.run(input="Write a blog post about letter standards")
     print(ret["response"])
 
 

@@ -30,7 +30,7 @@ class FunctionCallingAgent(Workflow):
         llm: FunctionCallingLLM | None = None,
         tools: List[BaseTool] | None = None,
         system_prompt: str | None = None,
-        verbose: bool = True,
+        verbose: bool = False,
         timeout: float = 360.0,
         name: str,
         **kwargs: Any,
