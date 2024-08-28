@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from app.core.agent_call import AgentCallingAgent, AgentOrchestrator
 from app.core.function_call import FunctionCallingAgent
+from app.core.orchestrator import PlanningOrchestrator
 from app.engine.index import get_index
 from app.settings import init_settings
 from llama_index.core.tools import QueryEngineTool, ToolMetadata
@@ -51,7 +52,7 @@ def create_orchestrator(researcher, reviewer):
         role="expert in writing blog posts",
         system_prompt="""You are an expert in writing blog posts. You are given a task to write a blog post. Don't make up any information yourself. If you don't have the necessary information to write a blog post, reply "I need information about the topic to write the blog post". If you have all the information needed, write the blog post.""",
     )
-    return AgentOrchestrator(
+    return PlanningOrchestrator(
         agents=[writer, reviewer, researcher],
     )
 
@@ -73,7 +74,7 @@ async def main():
     ret = await agent.run(
         input="Write a blog post about physical standards for letters"
     )
-    print(ret["response"])
+    print(ret)
 
 
 if __name__ == "__main__":
