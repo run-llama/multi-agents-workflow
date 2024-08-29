@@ -11,9 +11,9 @@ from llama_index.core.workflow import (
     step,
 )
 
-from app.core.agent_call import create_call_workflow_fn
 from app.core.function_call import FunctionCallingAgent
 from app.core.planner import Planner, SubTask
+from llama_index.core.tools import BaseTool
 
 
 class ExecutePlanEvent(Event):
@@ -29,24 +29,25 @@ class SubTaskResultEvent(Event):
     result: str
 
 
-class PlanningOrchestrator(Workflow):
+class StructuredPlannerAgent(Workflow):
     def __init__(
         self,
         *args: Any,
+        name: str,
         llm: FunctionCallingLLM | None = None,
-        agents: List[Workflow] | None = None,
+        tools: List[BaseTool] | None = None,
         timeout: float = 360.0,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, timeout=timeout, **kwargs)
-        self.name = "orchestrator"
+        self.name = name
 
         if llm is None:
             llm = Settings.llm
         self.llm = llm
         assert self.llm.metadata.is_function_calling_model
 
-        self.tools = [create_call_workflow_fn(self.name, agent) for agent in agents]
+        self.tools = tools or []
         self.planner = Planner(tools=self.tools)
         # The executor is keeping the memory of all tool calls and decides to call the right tool for the task
         self.executor = FunctionCallingAgent(
