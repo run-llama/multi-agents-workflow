@@ -12,21 +12,21 @@ from llama_index.core.workflow import (
 )
 
 from app.core.agent_call import create_call_workflow_fn
+from app.core.function_call import FunctionCallingAgent
 from app.core.planner import Planner, SubTask
 
 
-class StartPlanEvent(Event):
-    plan_id: str
+class ExecutePlanEvent(Event):
+    pass
 
 
 class SubTaskEvent(Event):
-    plan_id: str
     sub_task: SubTask
 
 
 class SubTaskResultEvent(Event):
-    plan_id: str
     sub_task: SubTask
+    result: str
 
 
 class PlanningOrchestrator(Workflow):
@@ -48,47 +48,62 @@ class PlanningOrchestrator(Workflow):
 
         self.tools = [create_call_workflow_fn(self.name, agent) for agent in agents]
         self.planner = Planner(tools=self.tools)
+        # The executor is keeping the memory of all tool calls and decides to call the right tool for the task
+        self.executor = FunctionCallingAgent(
+            name="executor",
+            tools=self.tools,
+            system_prompt="You are an expert in completing given tasks by calling the right tool for the task.",
+        )
 
     @step()
-    async def create_plan(self, ev: StartEvent) -> StartPlanEvent | StopEvent:
+    async def create_plan(
+        self, ctx: Context, ev: StartEvent
+    ) -> ExecutePlanEvent | StopEvent:
         plan_id = await self.planner.create_plan(input=ev.input)
-        if plan_id is None:
-            return StopEvent()
-        return StartPlanEvent(plan_id=plan_id)
+        ctx.data["act_plan_id"] = plan_id
+        print("=== Executing plan ===")
+        return ExecutePlanEvent()
 
     @step()
-    async def execute_plan(self, ctx: Context, ev: StartPlanEvent) -> SubTaskEvent:
-        upcoming_sub_tasks = self.planner.state.get_next_sub_tasks(ev.plan_id)
-
-        if len(upcoming_sub_tasks) == 0:
-            return StopEvent(result={"response": ""})
+    async def execute_plan(self, ctx: Context, ev: ExecutePlanEvent) -> SubTaskEvent:
+        upcoming_sub_tasks = self.planner.state.get_next_sub_tasks(
+            ctx.data["act_plan_id"]
+        )
 
         ctx.data["num_sub_tasks"] = len(upcoming_sub_tasks)
-
         # send an event per sub task
-        events = [
-            SubTaskEvent(sub_task=sub_task, plan_id=ev.plan_id)
-            for sub_task in upcoming_sub_tasks
-        ]
+        events = [SubTaskEvent(sub_task=sub_task) for sub_task in upcoming_sub_tasks]
         for event in events:
             ctx.session.send_event(event)
 
         return None
 
     @step()
-    async def execute_sub_task(self, ev: SubTaskEvent) -> SubTaskResultEvent:
-        print(f"Executing sub task: {ev.sub_task.name}")
-        self.planner.state.add_completed_sub_task(ev.plan_id, ev.sub_task)
-        return SubTaskResultEvent(sub_task=ev.sub_task, plan_id=ev.plan_id)
+    async def execute_sub_task(
+        self, ctx: Context, ev: SubTaskEvent
+    ) -> SubTaskResultEvent:
+        print(f"=== Executing sub task: {ev.sub_task.name} ===")
+        result = await self.executor.run(input=ev.sub_task.input)
+        result = str(result["response"])
+        print("=== Done executing sub task ===")
+        self.planner.state.add_completed_sub_task(ctx.data["act_plan_id"], ev.sub_task)
+        return SubTaskResultEvent(sub_task=ev.sub_task, result=result)
 
     @step()
-    async def gather_results(self, ctx: Context, ev: SubTaskResultEvent) -> StopEvent:
-        # wait for sub tasks to finish
+    async def gather_results(
+        self, ctx: Context, ev: SubTaskResultEvent
+    ) -> ExecutePlanEvent | StopEvent:
+        # wait for all sub tasks to finish
         num_sub_tasks = ctx.data["num_sub_tasks"]
         results = ctx.collect_events(ev, [SubTaskResultEvent] * num_sub_tasks)
-        if results is None:
-            return None
+        assert results is not None
 
-        # TODO: implement refining the plan
+        # if no more tasks to do, stop workflow and send result of last step
+        upcoming_sub_tasks = self.planner.state.get_next_sub_tasks(
+            ctx.data["act_plan_id"]
+        )
+        if len(upcoming_sub_tasks) == 0:
+            return StopEvent(result=results[-1].result)
 
-        return StopEvent(result=results)
+        # continue executing plan
+        return ExecutePlanEvent()
