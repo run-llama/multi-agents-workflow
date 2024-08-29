@@ -61,8 +61,9 @@ class StructuredPlannerAgent(Workflow):
         self, ctx: Context, ev: StartEvent
     ) -> ExecutePlanEvent | StopEvent:
         plan_id = await self.planner.create_plan(input=ev.input)
+        ctx.data["task"] = ev.input
         ctx.data["act_plan_id"] = plan_id
-        print("=== Executing plan ===")
+        print("=== Executing plan ===\n")
         return ExecutePlanEvent()
 
     @step()
@@ -86,7 +87,7 @@ class StructuredPlannerAgent(Workflow):
         print(f"=== Executing sub task: {ev.sub_task.name} ===")
         result = await self.executor.run(input=ev.sub_task.input)
         result = str(result["response"])
-        print("=== Done executing sub task ===")
+        print("=== Done executing sub task ===\n")
         self.planner.state.add_completed_sub_task(ctx.data["act_plan_id"], ev.sub_task)
         return SubTaskResultEvent(sub_task=ev.sub_task, result=result)
 
@@ -96,8 +97,15 @@ class StructuredPlannerAgent(Workflow):
     ) -> ExecutePlanEvent | StopEvent:
         # wait for all sub tasks to finish
         num_sub_tasks = ctx.data["num_sub_tasks"]
-        results = ctx.collect_events(ev, [SubTaskResultEvent] * num_sub_tasks)
+        results: List[SubTaskResultEvent] = ctx.collect_events(
+            ev, [SubTaskResultEvent] * num_sub_tasks
+        )
         assert results is not None
+
+        # store all results for refining the plan
+        ctx.data["results"] = ctx.data.get("results", {})
+        for result in results:
+            ctx.data["results"][result.sub_task.name] = result.result
 
         # if no more tasks to do, stop workflow and send result of last step
         upcoming_sub_tasks = self.planner.state.get_next_sub_tasks(
@@ -105,6 +113,10 @@ class StructuredPlannerAgent(Workflow):
         )
         if len(upcoming_sub_tasks) == 0:
             return StopEvent(result=results[-1].result)
+
+        await self.planner.refine_plan(
+            ctx.data["task"], ctx.data["act_plan_id"], ctx.data["results"]
+        )
 
         # continue executing plan
         return ExecutePlanEvent()
