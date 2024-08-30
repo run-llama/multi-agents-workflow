@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Tuple, Union
 import uuid
 
 
@@ -42,7 +42,7 @@ class Planner:
             plan_refine_prompt = PromptTemplate(plan_refine_prompt)
         self.plan_refine_prompt = plan_refine_prompt
 
-    async def create_plan(self, input: str) -> str:
+    async def create_plan(self, input: str) -> Tuple[str, Plan]:
         tools = self.tools
         tools_str = ""
         for tool in tools:
@@ -76,14 +76,14 @@ class Planner:
         plan_id = str(uuid.uuid4())
         self.state.plan_dict[plan_id] = plan
 
-        return plan_id
+        return plan_id, plan
 
     async def refine_plan(
         self,
         input: str,
         plan_id: str,
         completed_sub_tasks: Dict[str, str],
-    ) -> None:
+    ) -> Optional[Plan]:
         """Refine a plan."""
         prompt_args = self.get_refine_plan_prompt_kwargs(
             plan_id, input, completed_sub_tasks
@@ -95,11 +95,13 @@ class Planner:
             )
 
             self._update_plan(plan_id, new_plan)
+
+            return new_plan
         except (ValueError, ValidationError) as e:
             # likely no new plan predicted
             if self.verbose:
                 print(f"No new plan predicted: {e}")
-            return
+            return None
 
     def _update_plan(self, plan_id: str, new_plan: Plan) -> None:
         """Update the plan."""

@@ -11,8 +11,10 @@ from llama_index.core.workflow import (
 )
 
 from app.core.function_call import AgentRunResult, FunctionCallingAgent
-from app.core.planner import Planner, SubTask
+from app.core.planner import Planner, SubTask, Plan
 from llama_index.core.tools import BaseTool
+
+from enum import Enum
 
 
 class ExecutePlanEvent(Event):
@@ -26,6 +28,22 @@ class SubTaskEvent(Event):
 class SubTaskResultEvent(Event):
     sub_task: SubTask
     result: AgentRunResult
+
+
+class PlanEventType(Enum):
+    CREATED = "created"
+    REFINED = "refined"
+
+
+class PlanEvent(Event):
+
+    event_type: PlanEventType
+    plan: Plan
+
+    @property
+    def msg(self) -> str:
+        sub_task_names = ", ".join(task.name for task in self.plan.sub_tasks)
+        return f"Plan {self.event_type.value}: Let's do: {sub_task_names}"
 
 
 class StructuredPlannerAgent(Workflow):
@@ -44,7 +62,7 @@ class StructuredPlannerAgent(Workflow):
         self.refine_plan = refine_plan
 
         self.tools = tools or []
-        self.planner = Planner(llm=llm, tools=self.tools)
+        self.planner = Planner(llm=llm, tools=self.tools, verbose=self._verbose)
         # The executor is keeping the memory of all tool calls and decides to call the right tool for the task
         self.executor = FunctionCallingAgent(
             name="executor",
@@ -58,10 +76,15 @@ class StructuredPlannerAgent(Workflow):
     async def create_plan(
         self, ctx: Context, ev: StartEvent
     ) -> ExecutePlanEvent | StopEvent:
-        plan_id = await self.planner.create_plan(input=ev.input)
+        plan_id, plan = await self.planner.create_plan(input=ev.input)
         ctx.data["task"] = ev.input
         ctx.data["act_plan_id"] = plan_id
-        print("=== Executing plan ===\n")
+        # inform about the new plan
+        ctx.session.write_event_to_stream(
+            PlanEvent(event_type=PlanEventType.CREATED, plan=plan)
+        )
+        if self._verbose:
+            print("=== Executing plan ===\n")
         return ExecutePlanEvent()
 
     @step()
@@ -82,9 +105,11 @@ class StructuredPlannerAgent(Workflow):
     async def execute_sub_task(
         self, ctx: Context, ev: SubTaskEvent
     ) -> SubTaskResultEvent:
-        print(f"=== Executing sub task: {ev.sub_task.name} ===")
+        if self._verbose:
+            print(f"=== Executing sub task: {ev.sub_task.name} ===")
         result: AgentRunResult = await self.executor.run(input=ev.sub_task.input)
-        print("=== Done executing sub task ===\n")
+        if self._verbose:
+            print("=== Done executing sub task ===\n")
         self.planner.state.add_completed_sub_task(ctx.data["act_plan_id"], ev.sub_task)
         return SubTaskResultEvent(sub_task=ev.sub_task, result=result)
 
@@ -111,9 +136,14 @@ class StructuredPlannerAgent(Workflow):
             return StopEvent(result=results[-1].result)
 
         if self.refine_plan:
-            await self.planner.refine_plan(
+            new_plan = await self.planner.refine_plan(
                 ctx.data["task"], ctx.data["act_plan_id"], ctx.data["results"]
             )
+            # inform about the new plan
+            if new_plan is not None:
+                ctx.session.write_event_to_stream(
+                    PlanEvent(event_type=PlanEventType.REFINED, plan=new_plan)
+                )
 
         # continue executing plan
         return ExecutePlanEvent()

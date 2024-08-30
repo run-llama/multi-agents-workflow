@@ -81,11 +81,16 @@ def create_orchestrator():
 
 
 async def main():
-    agent = create_choreography()
-    # agent = create_orchestrator()
-    ret: AgentRunResult = await agent.run(
-        input="Write a blog post about physical standards for letters"
+    # agent = create_choreography()
+    agent = create_orchestrator()
+    task = asyncio.create_task(
+        agent.run(input="Write a blog post about physical standards for letters")
     )
+
+    async for ev in agent.stream_events():
+        print(ev.msg)
+
+    ret: AgentRunResult = await task
     print(ret.response.message.content)
 
 
