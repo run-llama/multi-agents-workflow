@@ -5,10 +5,11 @@ from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.tools.types import BaseTool
 from llama_index.core.workflow import Workflow, StartEvent, StopEvent, step
 
-from llama_index.core.llms import ChatMessage
+from llama_index.core.llms import ChatMessage, ChatResponse
 from llama_index.core.tools import ToolSelection, ToolOutput
 from llama_index.core.workflow import Event
 from llama_index.core.settings import Settings
+from pydantic import BaseModel
 
 
 class InputEvent(Event):
@@ -19,8 +20,9 @@ class ToolCallEvent(Event):
     tool_calls: list[ToolSelection]
 
 
-class FunctionOutputEvent(Event):
-    output: ToolOutput
+class AgentRunResult(BaseModel):
+    response: ChatResponse
+    sources: list[ToolOutput]
 
 
 class FunctionCallingAgent(Workflow):
@@ -84,7 +86,9 @@ class FunctionCallingAgent(Workflow):
         )
 
         if not tool_calls:
-            return StopEvent(result={"response": response, "sources": [*self.sources]})
+            return StopEvent(
+                result=AgentRunResult(response=response, sources=[*self.sources])
+            )
         else:
             return ToolCallEvent(tool_calls=tool_calls)
 

@@ -1,11 +1,10 @@
 from typing import Any, List
 
 from llama_index.core.tools import FunctionTool
-from llama_index.core.workflow import Workflow
 
 from app.core.planner_agent import StructuredPlannerAgent
 from app.core.prefix import PrintPrefix
-from app.core.function_call import FunctionCallingAgent
+from app.core.function_call import AgentRunResult, FunctionCallingAgent
 
 import textwrap
 
@@ -14,7 +13,7 @@ class AgentCallingAgent(FunctionCallingAgent):
     def __init__(
         self,
         *args: Any,
-        agents: List[Workflow] | None = None,
+        agents: List[FunctionCallingAgent] | None = None,
         **kwargs: Any,
     ) -> None:
         agents = agents or []
@@ -28,7 +27,7 @@ class AgentOrchestrator(StructuredPlannerAgent):
     def __init__(
         self,
         *args: Any,
-        agents: List[Workflow] | None = None,
+        agents: List[FunctionCallingAgent] | None = None,
         name: str = "orchestrator",
         **kwargs: Any,
     ) -> None:
@@ -44,7 +43,9 @@ class AgentOrchestrator(StructuredPlannerAgent):
         self.add_workflows(**{agent.name: agent for agent in agents})
 
 
-def _create_call_workflow_fn(caller_name: str, agent: Workflow) -> FunctionTool:
+def _create_call_workflow_fn(
+    caller_name: str, agent: FunctionCallingAgent
+) -> FunctionTool:
     def info(prefix: str, text: str) -> None:
         truncated = textwrap.shorten(text, width=255, placeholder="...")
         print(f"{prefix}: '{truncated}'")
@@ -52,8 +53,8 @@ def _create_call_workflow_fn(caller_name: str, agent: Workflow) -> FunctionTool:
     async def acall_workflow_fn(input: str) -> str:
         info(f"[{caller_name}->{agent.name}]", input)
         with PrintPrefix(f"[{agent.name}]"):
-            ret = await agent.run(input=input)
-            response = str(ret["response"])
+            ret: AgentRunResult = await agent.run(input=input)
+            response = ret.response.message.content
         info(f"[{caller_name}<-{agent.name}]", response)
         return response
 

@@ -1,7 +1,6 @@
 from typing import Any, List
 
 from llama_index.core.llms.function_calling import FunctionCallingLLM
-from llama_index.core.settings import Settings
 from llama_index.core.workflow import (
     Context,
     Event,
@@ -11,7 +10,7 @@ from llama_index.core.workflow import (
     step,
 )
 
-from app.core.function_call import FunctionCallingAgent
+from app.core.function_call import AgentRunResult, FunctionCallingAgent
 from app.core.planner import Planner, SubTask
 from llama_index.core.tools import BaseTool
 
@@ -83,11 +82,11 @@ class StructuredPlannerAgent(Workflow):
         self, ctx: Context, ev: SubTaskEvent
     ) -> SubTaskResultEvent:
         print(f"=== Executing sub task: {ev.sub_task.name} ===")
-        result = await self.executor.run(input=ev.sub_task.input)
-        result = str(result["response"])
+        result: AgentRunResult = await self.executor.run(input=ev.sub_task.input)
+        result_str = result.response.message.content
         print("=== Done executing sub task ===\n")
         self.planner.state.add_completed_sub_task(ctx.data["act_plan_id"], ev.sub_task)
-        return SubTaskResultEvent(sub_task=ev.sub_task, result=result)
+        return SubTaskResultEvent(sub_task=ev.sub_task, result=result_str)
 
     @step()
     async def gather_results(
