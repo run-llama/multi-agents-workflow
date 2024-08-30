@@ -3,7 +3,7 @@ import asyncio
 import os
 from dotenv import load_dotenv
 from app.core.agent_call import AgentCallingAgent, AgentOrchestrator
-from app.core.function_call import FunctionCallingAgent
+from app.core.function_call import AgentRunResult, FunctionCallingAgent
 from app.engine.index import get_index
 from app.settings import init_settings
 from llama_index.core.tools import QueryEngineTool, ToolMetadata
@@ -81,12 +81,12 @@ def create_orchestrator():
 
 
 async def main():
-    # agent = create_choreography()
-    agent = create_orchestrator()
-    ret = await agent.run(
+    agent = create_choreography()
+    # agent = create_orchestrator()
+    ret: AgentRunResult = await agent.run(
         input="Write a blog post about physical standards for letters"
     )
-    print(ret)
+    print(ret.response.message.content)
 
 
 if __name__ == "__main__":

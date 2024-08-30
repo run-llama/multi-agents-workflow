@@ -25,7 +25,7 @@ class SubTaskEvent(Event):
 
 class SubTaskResultEvent(Event):
     sub_task: SubTask
-    result: str
+    result: AgentRunResult
 
 
 class StructuredPlannerAgent(Workflow):
@@ -84,10 +84,9 @@ class StructuredPlannerAgent(Workflow):
     ) -> SubTaskResultEvent:
         print(f"=== Executing sub task: {ev.sub_task.name} ===")
         result: AgentRunResult = await self.executor.run(input=ev.sub_task.input)
-        result_str = result.response.message.content
         print("=== Done executing sub task ===\n")
         self.planner.state.add_completed_sub_task(ctx.data["act_plan_id"], ev.sub_task)
-        return SubTaskResultEvent(sub_task=ev.sub_task, result=result_str)
+        return SubTaskResultEvent(sub_task=ev.sub_task, result=result)
 
     @step()
     async def gather_results(
