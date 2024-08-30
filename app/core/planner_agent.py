@@ -37,10 +37,12 @@ class StructuredPlannerAgent(Workflow):
         llm: FunctionCallingLLM | None = None,
         tools: List[BaseTool] | None = None,
         timeout: float = 360.0,
+        refine_plan: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, timeout=timeout, **kwargs)
         self.name = name
+        self.refine_plan = refine_plan
 
         if llm is None:
             llm = Settings.llm
@@ -97,10 +99,9 @@ class StructuredPlannerAgent(Workflow):
     ) -> ExecutePlanEvent | StopEvent:
         # wait for all sub tasks to finish
         num_sub_tasks = ctx.data["num_sub_tasks"]
-        results: List[SubTaskResultEvent] = ctx.collect_events(
-            ev, [SubTaskResultEvent] * num_sub_tasks
-        )
-        assert results is not None
+        results = ctx.collect_events(ev, [SubTaskResultEvent] * num_sub_tasks)
+        if results is None:
+            return None
 
         # store all results for refining the plan
         ctx.data["results"] = ctx.data.get("results", {})
@@ -114,9 +115,10 @@ class StructuredPlannerAgent(Workflow):
         if len(upcoming_sub_tasks) == 0:
             return StopEvent(result=results[-1].result)
 
-        await self.planner.refine_plan(
-            ctx.data["task"], ctx.data["act_plan_id"], ctx.data["results"]
-        )
+        if self.refine_plan:
+            await self.planner.refine_plan(
+                ctx.data["task"], ctx.data["act_plan_id"], ctx.data["results"]
+            )
 
         # continue executing plan
         return ExecutePlanEvent()

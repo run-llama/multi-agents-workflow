@@ -27,9 +27,6 @@ class Planner:
     ) -> None:
         if llm is None:
             llm = Settings.llm
-            # Uncomment to fix tools_by_name KeyError
-            # from llama_index.llms.openai import OpenAI
-            # llm = OpenAI()
         self.llm = llm
         assert self.llm.metadata.is_function_calling_model
 
@@ -91,9 +88,6 @@ class Planner:
         prompt_args = self.get_refine_plan_prompt_kwargs(
             plan_id, input, completed_sub_tasks
         )
-
-        # Uncomment to fix tools_by_name KeyError
-        # print(self.plan_refine_prompt.format(**prompt_args))
 
         try:
             new_plan = await self.llm.astructured_predict(
