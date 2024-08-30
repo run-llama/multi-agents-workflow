@@ -1,14 +1,19 @@
 from typing import Any, List, Optional
 
+from llama_index.core.llms import ChatMessage, ChatResponse
 from llama_index.core.llms.function_calling import FunctionCallingLLM
 from llama_index.core.memory import ChatMemoryBuffer
-from llama_index.core.tools.types import BaseTool
-from llama_index.core.workflow import Workflow, StartEvent, StopEvent, step
-
-from llama_index.core.llms import ChatMessage, ChatResponse
-from llama_index.core.tools import ToolSelection, ToolOutput
-from llama_index.core.workflow import Event
 from llama_index.core.settings import Settings
+from llama_index.core.tools import ToolOutput, ToolSelection
+from llama_index.core.tools.types import BaseTool
+from llama_index.core.workflow import (
+    Context,
+    Event,
+    StartEvent,
+    StopEvent,
+    Workflow,
+    step,
+)
 from pydantic import BaseModel
 
 
@@ -54,7 +59,7 @@ class FunctionCallingAgent(Workflow):
         self.sources = []
 
     @step()
-    async def prepare_chat_history(self, ev: StartEvent) -> InputEvent:
+    async def prepare_chat_history(self, ctx: Context, ev: StartEvent) -> InputEvent:
         # clear sources
         self.sources = []
 
@@ -67,13 +72,18 @@ class FunctionCallingAgent(Workflow):
         user_input = ev.input
         user_msg = ChatMessage(role="user", content=user_input)
         self.memory.put(user_msg)
+        ctx.session.write_event_to_stream(
+            Event(msg=f"[{self.name}] Start to work on: {user_input}")
+        )
 
         # get chat history
         chat_history = self.memory.get()
         return InputEvent(input=chat_history)
 
     @step()
-    async def handle_llm_input(self, ev: InputEvent) -> ToolCallEvent | StopEvent:
+    async def handle_llm_input(
+        self, ctx: Context, ev: InputEvent
+    ) -> ToolCallEvent | StopEvent:
         chat_history = ev.input
 
         response = await self.llm.achat_with_tools(
@@ -86,6 +96,7 @@ class FunctionCallingAgent(Workflow):
         )
 
         if not tool_calls:
+            ctx.session.write_event_to_stream(Event(msg=f"[{self.name}] Finished task"))
             return StopEvent(
                 result=AgentRunResult(response=response, sources=[*self.sources])
             )
@@ -93,7 +104,7 @@ class FunctionCallingAgent(Workflow):
             return ToolCallEvent(tool_calls=tool_calls)
 
     @step()
-    async def handle_tool_calls(self, ev: ToolCallEvent) -> InputEvent:
+    async def handle_tool_calls(self, ctx: Context, ev: ToolCallEvent) -> InputEvent:
         tool_calls = ev.tool_calls
         tools_by_name = {tool.metadata.get_name(): tool for tool in self.tools}
 
