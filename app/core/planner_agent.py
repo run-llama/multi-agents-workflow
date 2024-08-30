@@ -44,18 +44,14 @@ class StructuredPlannerAgent(Workflow):
         self.name = name
         self.refine_plan = refine_plan
 
-        if llm is None:
-            llm = Settings.llm
-        self.llm = llm
-        assert self.llm.metadata.is_function_calling_model
-
         self.tools = tools or []
-        self.planner = Planner(tools=self.tools)
+        self.planner = Planner(llm=llm, tools=self.tools)
         # The executor is keeping the memory of all tool calls and decides to call the right tool for the task
         self.executor = FunctionCallingAgent(
             name="executor",
+            llm=llm,
             tools=self.tools,
-            system_prompt="You are an expert in completing given tasks by calling the right tool for the task.",
+            system_prompt="You are an expert in completing given tasks by calling the right tool for the task. Just return the result of the tool call. Don't add any information yourself",
         )
 
     @step()
@@ -108,10 +104,10 @@ class StructuredPlannerAgent(Workflow):
         for result in results:
             ctx.data["results"][result.sub_task.name] = result.result
 
-        # if no more tasks to do, stop workflow and send result of last step
         upcoming_sub_tasks = self.planner.state.get_next_sub_tasks(
             ctx.data["act_plan_id"]
         )
+        # if no more tasks to do, stop workflow and send result of last step
         if len(upcoming_sub_tasks) == 0:
             return StopEvent(result=results[-1].result)
 
