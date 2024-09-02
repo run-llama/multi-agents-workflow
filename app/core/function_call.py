@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import Any, List, Optional
 
 from llama_index.core.llms import ChatMessage, ChatResponse
@@ -6,6 +7,8 @@ from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.settings import Settings
 from llama_index.core.tools import ToolOutput, ToolSelection
 from llama_index.core.tools.types import BaseTool
+from llama_index.core.tools import FunctionTool
+
 from llama_index.core.workflow import (
     Context,
     Event,
@@ -25,9 +28,28 @@ class ToolCallEvent(Event):
     tool_calls: list[ToolSelection]
 
 
+class AgentRunEvent(Event):
+    name: str
+    _msg: str
+
+    @property
+    def msg(self):
+        return self._msg
+
+    @msg.setter
+    def msg(self, value):
+        self._msg = value
+
+
 class AgentRunResult(BaseModel):
     response: ChatResponse
     sources: list[ToolOutput]
+
+
+class ContextAwareTool(FunctionTool):
+    @abstractmethod
+    async def acall(self, ctx: Context, input: Any) -> ToolOutput:
+        pass
 
 
 class FunctionCallingAgent(Workflow):
@@ -40,6 +62,7 @@ class FunctionCallingAgent(Workflow):
         verbose: bool = False,
         timeout: float = 360.0,
         name: str,
+        write_events: bool = True,
         role: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
@@ -47,6 +70,7 @@ class FunctionCallingAgent(Workflow):
         self.tools = tools or []
         self.name = name
         self.role = role
+        self.write_events = write_events
 
         if llm is None:
             llm = Settings.llm
@@ -72,9 +96,10 @@ class FunctionCallingAgent(Workflow):
         user_input = ev.input
         user_msg = ChatMessage(role="user", content=user_input)
         self.memory.put(user_msg)
-        ctx.session.write_event_to_stream(
-            Event(msg=f"[{self.name}] Start to work on: {user_input}")
-        )
+        if self.write_events:
+            ctx.write_event_to_stream(
+                AgentRunEvent(name=self.name, msg=f"Start to work on: {user_input}")
+            )
 
         # get chat history
         chat_history = self.memory.get()
@@ -96,7 +121,10 @@ class FunctionCallingAgent(Workflow):
         )
 
         if not tool_calls:
-            ctx.session.write_event_to_stream(Event(msg=f"[{self.name}] Finished task"))
+            if self.write_events:
+                ctx.write_event_to_stream(
+                    AgentRunEvent(name=self.name, msg="Finished task")
+                )
             return StopEvent(
                 result=AgentRunResult(response=response, sources=[*self.sources])
             )
@@ -128,7 +156,11 @@ class FunctionCallingAgent(Workflow):
                 continue
 
             try:
-                tool_output = await tool.acall(**tool_call.tool_kwargs)
+                if isinstance(tool, ContextAwareTool):
+                    # inject context for calling an context aware tool
+                    tool_output = await tool.acall(ctx=ctx, **tool_call.tool_kwargs)
+                else:
+                    tool_output = await tool.acall(**tool_call.tool_kwargs)
                 self.sources.append(tool_output)
                 tool_msgs.append(
                     ChatMessage(

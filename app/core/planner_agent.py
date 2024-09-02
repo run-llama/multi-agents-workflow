@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any, List
 
 from llama_index.core.llms.function_calling import FunctionCallingLLM
@@ -10,7 +11,7 @@ from llama_index.core.workflow import (
     step,
 )
 
-from app.core.function_call import AgentRunResult, FunctionCallingAgent
+from app.core.function_call import AgentRunEvent, AgentRunResult, FunctionCallingAgent
 from app.core.planner import Planner, SubTask, Plan
 from llama_index.core.tools import BaseTool
 
@@ -35,8 +36,7 @@ class PlanEventType(Enum):
     REFINED = "refined"
 
 
-class PlanEvent(Event):
-
+class PlanEvent(AgentRunEvent):
     event_type: PlanEventType
     plan: Plan
 
@@ -68,9 +68,11 @@ class StructuredPlannerAgent(Workflow):
             name="executor",
             llm=llm,
             tools=self.tools,
+            write_events=False,
             # it's important to instruct to just return the tool call, otherwise the executor will interpret and change the result
             system_prompt="You are an expert in completing given tasks by calling the right tool for the task. Just return the result of the tool call. Don't add any information yourself",
         )
+        self.add_workflows(executor=self.executor)
 
     @step()
     async def create_plan(
@@ -80,8 +82,8 @@ class StructuredPlannerAgent(Workflow):
         ctx.data["task"] = ev.input
         ctx.data["act_plan_id"] = plan_id
         # inform about the new plan
-        ctx.session.write_event_to_stream(
-            PlanEvent(event_type=PlanEventType.CREATED, plan=plan)
+        ctx.write_event_to_stream(
+            PlanEvent(name=self.name, event_type=PlanEventType.CREATED, plan=plan)
         )
         if self._verbose:
             print("=== Executing plan ===\n")
@@ -97,7 +99,7 @@ class StructuredPlannerAgent(Workflow):
         # send an event per sub task
         events = [SubTaskEvent(sub_task=sub_task) for sub_task in upcoming_sub_tasks]
         for event in events:
-            ctx.session.send_event(event)
+            ctx.send_event(event)
 
         return None
 
@@ -107,7 +109,13 @@ class StructuredPlannerAgent(Workflow):
     ) -> SubTaskResultEvent:
         if self._verbose:
             print(f"=== Executing sub task: {ev.sub_task.name} ===")
-        result: AgentRunResult = await self.executor.run(input=ev.sub_task.input)
+        # FIXME: reset contexts, not needed after https://github.com/run-llama/llama_index/pull/15776
+        self.executor._contexts = set()
+        task = asyncio.create_task(self.executor.run(input=ev.sub_task.input))
+        # bubble all events while running the executor to the planner
+        async for event in self.executor.stream_events():
+            ctx.write_event_to_stream(event)
+        result: AgentRunResult = await task
         if self._verbose:
             print("=== Done executing sub task ===\n")
         self.planner.state.add_completed_sub_task(ctx.data["act_plan_id"], ev.sub_task)
@@ -141,8 +149,10 @@ class StructuredPlannerAgent(Workflow):
             )
             # inform about the new plan
             if new_plan is not None:
-                ctx.session.write_event_to_stream(
-                    PlanEvent(event_type=PlanEventType.REFINED, plan=new_plan)
+                ctx.write_event_to_stream(
+                    PlanEvent(
+                        name=self.name, event_type=PlanEventType.REFINED, plan=new_plan
+                    )
                 )
 
         # continue executing plan
