@@ -5,12 +5,12 @@ from llama_index.core.tools.types import ToolMetadata, ToolOutput
 from llama_index.core.tools.utils import create_schema_from_function
 from llama_index.core.workflow import Context, Workflow
 
-from app.core.function_call import (
+from app.agents.single import (
     AgentRunResult,
     ContextAwareTool,
     FunctionCallingAgent,
 )
-from app.core.planner_agent import StructuredPlannerAgent
+from app.agents.planner import StructuredPlannerAgent
 
 
 class AgentCallTool(ContextAwareTool):
