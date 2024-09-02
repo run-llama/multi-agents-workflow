@@ -1,4 +1,4 @@
-This is a [LlamaIndex](https://www.llamaindex.ai/) multi-agents project using [FastAPI](https://fastapi.tiangolo.com/) bootstrapped with [`create-llama`](https://github.com/run-llama/LlamaIndexTS/tree/main/packages/create-llama).
+This is a [LlamaIndex](https://www.llamaindex.ai/) multi-agents project using [Workflows](https://docs.llamaindex.ai/en/stable/understanding/workflows/). 
 
 ## Overview
 
@@ -12,8 +12,6 @@ There are three different methods how the agents can interact to reach their goa
 1. [Choreography](./app/examples/choreography.py) - the agents decide themselves to delegate a task to another agent
 1. [Orchestator](./app/examples/orchestrator.py) - a central orchestrator decides which agent should execute a task
 1. [Explicit Workflow](./app/examples/workflow.py) - a pre-defined workflow specific for the task is used to execute the tasks
-
-All three methods are based on [Workflows](https://docs.llamaindex.ai/en/stable/understanding/workflows/) from LlamaIndex.
 
 ## Getting Started
 
