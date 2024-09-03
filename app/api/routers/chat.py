@@ -23,15 +23,14 @@ async def chat(
 ):
     try:
         last_message_content = data.get_last_message_content()
-        # TODO: use message history
-        # messages = data.get_history_messages()
+        messages = data.get_history_messages()
         # TODO: generate filters based on doc_ids
         # for now just use all documents
         # doc_ids = data.get_chat_document_ids()
         # TODO: use params
         # params = data.data or {}
 
-        agent: Workflow = create_agent()
+        agent: Workflow = create_agent(chat_history=messages)
         task = asyncio.create_task(agent.run(input=last_message_content))
 
         return VercelStreamResponse(request, task, agent.stream_events, data)
