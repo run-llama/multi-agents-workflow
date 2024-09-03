@@ -1,5 +1,6 @@
 from asyncio import Task
 import json
+import logging
 from typing import AsyncGenerator
 
 from aiostream import stream
@@ -7,10 +8,11 @@ from fastapi import Request
 from fastapi.responses import StreamingResponse
 from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 
-from app.api.routers.events import EventCallbackHandler
 from app.api.routers.models import ChatData, Message, SourceNodes
 from app.api.services.suggestion import NextQuestionSuggestion
 from app.agents.single import AgentRunEvent, AgentRunResult
+
+logger = logging.getLogger("uvicorn")
 
 
 class VercelStreamResponse(StreamingResponse):
@@ -38,9 +40,10 @@ class VercelStreamResponse(StreamingResponse):
         task: Task,
         events: AsyncGenerator[AgentRunEvent, None],
         chat_data: ChatData,
+        verbose: bool = True,
     ):
         content = VercelStreamResponse.content_generator(
-            request, task, events, chat_data
+            request, task, events, chat_data, verbose
         )
         super().__init__(content=content)
 
@@ -51,6 +54,7 @@ class VercelStreamResponse(StreamingResponse):
         task: Task[AgentRunResult],
         events: AsyncGenerator[AgentRunEvent, None],
         chat_data: ChatData,
+        verbose: bool = True,
     ):
         # Yield the text response
         async def _chat_response_generator():
@@ -67,6 +71,8 @@ class VercelStreamResponse(StreamingResponse):
         async def _event_generator():
             async for event in events():
                 event_response = _event_to_response(event)
+                if verbose:
+                    logger.info(event_response)
                 if event_response is not None:
                     yield VercelStreamResponse.convert_data(event_response)
 
