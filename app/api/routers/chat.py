@@ -45,8 +45,8 @@ async def chat(
 
         return VercelStreamResponse(request, task, agent.stream_events, data)
     except Exception as e:
-        logger.exception("Error in chat engine", exc_info=True)
+        logger.exception("Error in agent", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error in chat engine: {e}",
+            detail=f"Error in agent: {e}",
         ) from e
