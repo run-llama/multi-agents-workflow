@@ -1,4 +1,5 @@
 import asyncio
+from typing import List
 
 
 from llama_index.core.workflow import (
@@ -9,22 +10,26 @@ from llama_index.core.workflow import (
     Workflow,
     step,
 )
-
+from llama_index.core.chat_engine.types import ChatMessage
 from app.agents.single import AgentRunEvent, AgentRunResult, FunctionCallingAgent
 from app.examples.researcher import create_researcher
 
 
-def create_workflow():
-    researcher = create_researcher()
+def create_workflow(chat_history: List[ChatMessage]):
+    researcher = create_researcher(
+        chat_history=chat_history,
+    )
     writer = FunctionCallingAgent(
         name="writer",
         role="expert in writing blog posts",
         system_prompt="""You are an expert in writing blog posts. You are given a task to write a blog post. Don't make up any information yourself.""",
+        chat_history=chat_history,
     )
     reviewer = FunctionCallingAgent(
         name="reviewer",
         role="expert in reviewing blog posts",
         system_prompt="You are an expert in reviewing blog posts. You are given a task to review a blog post. Review the post for logical inconsistencies, ask critical questions, and provide suggestions for improvement. Furthermore, proofread the post for grammar and spelling errors. Only if the post is good enough for publishing, then you MUST return 'The post is good.'. In all other cases return your review.",
+        chat_history=chat_history,
     )
     workflow = BlogPostWorkflow(timeout=360)
     workflow.add_workflows(researcher=researcher, writer=writer, reviewer=reviewer)

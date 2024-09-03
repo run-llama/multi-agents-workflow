@@ -1,10 +1,12 @@
 import logging
+from typing import List
 from app.examples.choreography import create_choreography
 from app.examples.orchestrator import create_orchestrator
 from app.examples.workflow import create_workflow
 
 
 from llama_index.core.workflow import Workflow
+from llama_index.core.chat_engine.types import ChatMessage
 
 
 import os
@@ -12,15 +14,15 @@ import os
 logger = logging.getLogger("uvicorn")
 
 
-def create_agent() -> Workflow:
+def create_agent(chat_history: List[ChatMessage]) -> Workflow:
     agent_type = os.getenv("EXAMPLE_TYPE", "").lower()
     match agent_type:
         case "choreography":
-            agent = create_choreography()
+            agent = create_choreography(chat_history)
         case "orchestrator":
-            agent = create_orchestrator()
+            agent = create_orchestrator(chat_history)
         case "workflow":
-            agent = create_workflow()
+            agent = create_workflow(chat_history)
         case _:
             raise ValueError(
                 f"Invalid EXAMPLE_TYPE env variable: {agent_type}. Choose 'choreography', 'orchestrator', or 'workflow'."

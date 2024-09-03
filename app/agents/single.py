@@ -57,6 +57,7 @@ class FunctionCallingAgent(Workflow):
         self,
         *args: Any,
         llm: FunctionCallingLLM | None = None,
+        chat_history: Optional[List[ChatMessage]] = None,
         tools: List[BaseTool] | None = None,
         system_prompt: str | None = None,
         verbose: bool = False,
@@ -79,7 +80,9 @@ class FunctionCallingAgent(Workflow):
 
         self.system_prompt = system_prompt
 
-        self.memory = ChatMemoryBuffer.from_defaults(llm=self.llm)
+        self.memory = ChatMemoryBuffer.from_defaults(
+            llm=self.llm, chat_history=chat_history
+        )
         self.sources = []
 
     @step()
