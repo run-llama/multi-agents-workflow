@@ -8,6 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from llama_index.core.chat_engine.types import BaseChatEngine, NodeWithScore
 from llama_index.core.llms import MessageRole
 from llama_index.core.llms import ChatResponse
+from llama_index.core.workflow import Workflow
 from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 
 from app.agents.single import AgentRunResult
@@ -28,12 +29,7 @@ chat_router = r = APIRouter()
 logger = logging.getLogger("uvicorn")
 
 
-def info(prefix: str, text: str) -> None:
-    truncated = textwrap.shorten(text, width=255, placeholder="...")
-    print(f"[{prefix}] {truncated}")
-
-
-async def run_workflow(input: str) -> ChatResponse:
+def create_agent() -> Workflow:
     TYPE = os.getenv("EXAMPLE_TYPE", "").lower()
     match TYPE:
         case "choreography":
@@ -47,13 +43,7 @@ async def run_workflow(input: str) -> ChatResponse:
                 f"Invalid EXAMPLE_TYPE env variable: {TYPE}. Choose 'choreography', 'orchestrator', or 'workflow'."
             )
 
-    task = asyncio.create_task(agent.run(input=input))
-
-    async for ev in agent.stream_events():
-        info(ev.name, ev.msg)
-
-    ret: AgentRunResult = await task
-    return ret.response
+    return agent
 
 
 # streaming endpoint - delete if not needed
@@ -72,17 +62,10 @@ async def chat(
         # TODO: use params
         # params = data.data or {}
 
-        event_handler = EventCallbackHandler()
-        response = await run_workflow(last_message_content)
+        agent: Workflow = create_agent()
+        task = asyncio.create_task(agent.run(input=last_message_content))
 
-        # TODO: Hack, convert chat response to streaming chat response
-        stream_response = StreamingAgentChatResponse()
-        stream_response._ensure_async_setup()
-        for tok in response.message.content:
-            stream_response.aput_in_queue(tok)
-        stream_response.is_done = True
-
-        return VercelStreamResponse(request, event_handler, stream_response, data)
+        return VercelStreamResponse(request, task, agent.stream_events, data)
     except Exception as e:
         logger.exception("Error in chat engine", exc_info=True)
         raise HTTPException(
