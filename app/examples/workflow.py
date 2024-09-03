@@ -44,7 +44,6 @@ class ReviewEvent(Event):
 
 
 class BlogPostWorkflow(Workflow):
-
     @step()
     async def start(self, ctx: Context, ev: StartEvent) -> ResearchEvent:
         # start the workflow with researching about a topic
@@ -104,8 +103,6 @@ Review:
     async def run_agent(
         self, ctx: Context, agent: FunctionCallingAgent, input: str
     ) -> AgentRunResult:
-        # FIXME: reset contexts, not needed after https://github.com/run-llama/llama_index/pull/15776
-        agent._contexts = set()
         task = asyncio.create_task(agent.run(input=input))
         # bubble all events while running the executor to the planner
         async for event in agent.stream_events():

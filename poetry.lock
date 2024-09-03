@@ -787,19 +787,19 @@ pydantic = ">=1.10"
 
 [[package]]
 name = "llama-index"
-version = "0.11.3"
+version = "0.11.4"
 description = "Interface between LLMs and your data"
 optional = false
 python-versions = "<4.0,>=3.8.1"
 files = [
-    {file = "llama_index-0.11.3-py3-none-any.whl", hash = "sha256:f307a29b07536bca26cc39f955ec767d10c25becf167d409075bfaba9e2c654f"},
-    {file = "llama_index-0.11.3.tar.gz", hash = "sha256:4133b06931b3dc15b9a66bf127a06e2dbb19fe991e10afe58b7ef44a14085d29"},
+    {file = "llama_index-0.11.4-py3-none-any.whl", hash = "sha256:6a7b1177fb12396ecff336786c2a4e083703df7f1f330c19ed74ced30f865b9d"},
+    {file = "llama_index-0.11.4.tar.gz", hash = "sha256:aa048ffa96eff02bd70a2de095c0465143498956493a8f93e186e6e958087832"},
 ]
 
 [package.dependencies]
 llama-index-agent-openai = ">=0.3.0,<0.4.0"
 llama-index-cli = ">=0.3.0,<0.4.0"
-llama-index-core = ">=0.11.3,<0.12.0"
+llama-index-core = ">=0.11.4,<0.12.0"
 llama-index-embeddings-openai = ">=0.2.0,<0.3.0"
 llama-index-indices-managed-llama-cloud = ">=0.3.0"
 llama-index-legacy = ">=0.9.48,<0.10.0"
@@ -808,7 +808,7 @@ llama-index-multi-modal-llms-openai = ">=0.2.0,<0.3.0"
 llama-index-program-openai = ">=0.2.0,<0.3.0"
 llama-index-question-gen-openai = ">=0.2.0,<0.3.0"
 llama-index-readers-file = ">=0.2.0,<0.3.0"
-llama-index-readers-llama-parse = ">=0.2.0"
+llama-index-readers-llama-parse = ">=0.3.0"
 nltk = ">3.8.1"
 
 [[package]]
@@ -845,13 +845,13 @@ llama-index-llms-openai = ">=0.2.0,<0.3.0"
 
 [[package]]
 name = "llama-index-core"
-version = "0.11.3"
+version = "0.11.4"
 description = "Interface between LLMs and your data"
 optional = false
 python-versions = "<4.0,>=3.8.1"
 files = [
-    {file = "llama_index_core-0.11.3-py3-none-any.whl", hash = "sha256:061aaf3892707bff6a34fb264ccda30b9a920890379e04c3ae9895edddde5e22"},
-    {file = "llama_index_core-0.11.3.tar.gz", hash = "sha256:6b042e531797ccd755496570d563f3b1d9b42c292d3a311f8c21c8eb6aa57706"},
+    {file = "llama_index_core-0.11.4-py3-none-any.whl", hash = "sha256:a76fcc7ea7af6fb4f211e20a3003d4e711f523a2a4bffba04bfb16c2a58112de"},
+    {file = "llama_index_core-0.11.4.tar.gz", hash = "sha256:df19dac380c0ece1aff84ecbfcc74f686c15287c64923998582b0cb0520ed6e5"},
 ]
 
 [package.dependencies]
@@ -1031,18 +1031,18 @@ pymupdf = ["pymupdf (>=1.23.21,<2.0.0)"]
 
 [[package]]
 name = "llama-index-readers-llama-parse"
-version = "0.2.0"
+version = "0.3.0"
 description = "llama-index readers llama-parse integration"
 optional = false
 python-versions = "<4.0,>=3.8.1"
 files = [
-    {file = "llama_index_readers_llama_parse-0.2.0-py3-none-any.whl", hash = "sha256:c0cb103fac8cd0a6de62a1b71a56884bef99a2d55c3afcabb073f078e727494f"},
-    {file = "llama_index_readers_llama_parse-0.2.0.tar.gz", hash = "sha256:c54e8a207d73efb9f011636a30a4c1076b43d77a34d2563d374dc67c0cddfc83"},
+    {file = "llama_index_readers_llama_parse-0.3.0-py3-none-any.whl", hash = "sha256:1973cc710dbd5e110c7500c9983ecb45787ad1ff92e6b2113f94a57cf48f3038"},
+    {file = "llama_index_readers_llama_parse-0.3.0.tar.gz", hash = "sha256:a5feada0895714dcc41d65dd512c1c38cf70d8ae19947cff82b80d58e6aa367e"},
 ]
 
 [package.dependencies]
 llama-index-core = ">=0.11.0,<0.12.0"
-llama-parse = ">=0.4.0"
+llama-parse = ">=0.5.0"
 
 [[package]]
 name = "llama-parse"
@@ -2298,4 +2298,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "2380d5b0bfcca7b32c0d07854c9ec33f698aeae8d006e0b6f71d85ff0729746b"
+content-hash = "9f385b9d680d08626d7bf79b63b7ad649e30b87b292a2e195bf1bdebdd8033c0"

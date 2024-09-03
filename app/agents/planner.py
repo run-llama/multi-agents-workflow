@@ -118,8 +118,6 @@ class StructuredPlannerAgent(Workflow):
     ) -> SubTaskResultEvent:
         if self._verbose:
             print(f"=== Executing sub task: {ev.sub_task.name} ===")
-        # FIXME: reset contexts, not needed after https://github.com/run-llama/llama_index/pull/15776
-        self.executor._contexts = set()
         task = asyncio.create_task(self.executor.run(input=ev.sub_task.input))
         # bubble all events while running the executor to the planner
         async for event in self.executor.stream_events():
