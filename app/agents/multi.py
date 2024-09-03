@@ -35,8 +35,6 @@ class AgentCallTool(ContextAwareTool):
 
     # overload the acall function with the ctx argument as it's needed for bubbling the events
     async def acall(self, ctx: Context, input: str) -> ToolOutput:
-        # FIXME: reset contexts, not needed after https://github.com/run-llama/llama_index/pull/15776
-        self.agent._contexts = set()
         task = asyncio.create_task(self.agent.run(input=input))
         # bubble all events while running the agent to the calling agent
         async for ev in self.agent.stream_events():

@@ -6,10 +6,8 @@ from typing import AsyncGenerator
 from aiostream import stream
 from fastapi import Request
 from fastapi.responses import StreamingResponse
-from llama_index.core.chat_engine.types import StreamingAgentChatResponse
 
-from app.api.routers.models import ChatData, Message, SourceNodes
-from app.api.services.suggestion import NextQuestionSuggestion
+from app.api.routers.models import ChatData
 from app.agents.single import AgentRunEvent, AgentRunResult
 
 logger = logging.getLogger("uvicorn")
