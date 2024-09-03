@@ -4,45 +4,79 @@ import os
 import textwrap
 from dotenv import load_dotenv
 from app.agents.single import AgentRunResult
-from app.examples.choreography import create_choreography
-from app.examples.workflow import create_workflow
-from app.settings import init_settings
 
-from app.examples.orchestrator import create_orchestrator
+from app.config import DATA_DIR
 
 load_dotenv()
+
+import logging
+
+import uvicorn
+from app.api.routers.chat import chat_router
+from app.api.routers.chat_config import config_router
+from app.api.routers.upload import file_upload_router
+from app.observability import init_observability
+from app.settings import init_settings
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from app.examples.orchestrator import create_orchestrator
+from app.examples.choreography import create_choreography
+from app.examples.workflow import create_workflow
+
+app = FastAPI()
+
 init_settings()
+init_observability()
 
 
-def info(prefix: str, text: str) -> None:
-    truncated = textwrap.shorten(text, width=255, placeholder="...")
-    print(f"[{prefix}] {truncated}")
+environment = os.getenv("ENVIRONMENT", "dev")  # Default to 'development' if not set
+logger = logging.getLogger("uvicorn")
 
-
-async def main():
-    TYPE = os.getenv("EXAMPLE_TYPE", "").lower()
-    match TYPE:
-        case "choreography":
-            agent = create_choreography()
-        case "orchestrator":
-            agent = create_orchestrator()
-        case "workflow":
-            agent = create_workflow()
-        case _:
-            raise ValueError(
-                f"Invalid EXAMPLE_TYPE env variable: {TYPE}. Choose 'choreography', 'orchestrator', or 'workflow'."
-            )
-
-    task = asyncio.create_task(
-        agent.run(input="Write a blog post about physical standards for letters")
+if environment == "dev":
+    logger.warning("Running in development mode - allowing CORS for all origins")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
-    async for ev in agent.stream_events():
-        info(ev.name, ev.msg)
+    # Redirect to documentation page when accessing base URL
+    @app.get("/")
+    async def redirect_to_docs():
+        return RedirectResponse(url="/docs")
 
-    ret: AgentRunResult = await task
-    print(f"\n\nResult:\n\n{ret.response.message.content}")
+
+def mount_static_files(directory, path):
+    if os.path.exists(directory):
+        logger.info(f"Mounting static files '{directory}' at '{path}'")
+        app.mount(
+            path,
+            StaticFiles(directory=directory, check_dir=False),
+            name=f"{directory}-static",
+        )
+
+
+# Mount the data files to serve the file viewer
+mount_static_files(DATA_DIR, "/api/files/data")
+# Mount the output files from tools
+mount_static_files("output", "/api/files/output")
+
+app.include_router(chat_router, prefix="/api/chat")
+app.include_router(config_router, prefix="/api/chat/config")
+app.include_router(file_upload_router, prefix="/api/chat/upload")
+
+
+
+
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    app_host = os.getenv("APP_HOST", "0.0.0.0")
+    app_port = int(os.getenv("APP_PORT", "8000"))
+    reload = True if environment == "dev" else False
+
+    uvicorn.run(app="main:app", host=app_host, port=app_port, reload=reload)
