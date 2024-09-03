@@ -13,6 +13,7 @@ generate = "app.engine.generate:generate_datasource"
 python = "^3.11"
 llama-index-agent-openai = ">=0.3.0,<0.4.0"
 llama-index = "^0.11.3"
+fastapi = "^0.112.2"
 
 [tool.poetry.dependencies.docx2txt]
 version = "^0.8"

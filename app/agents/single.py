@@ -111,6 +111,12 @@ class FunctionCallingAgent(Workflow):
     ) -> ToolCallEvent | StopEvent:
         chat_history = ev.input
 
+        # TODO: use astream_chat_with_tools and
+        # send each token via write_event_to_stream
+        # achat_stream = await self.llm.astream_chat_with_tools(
+        #     self.tools, chat_history=chat_history
+        # )
+        # chat_response = StreamingAgentChatResponse(achat_stream=achat_stream)
         response = await self.llm.achat_with_tools(
             self.tools, chat_history=chat_history
         )
