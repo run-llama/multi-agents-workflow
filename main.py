@@ -1,8 +1,12 @@
 # flake8: noqa: E402
+import asyncio
 import os
+import textwrap
+from typing import AsyncGenerator
 from dotenv import load_dotenv
 
 from app.config import DATA_DIR
+from app.examples.factory import create_agent
 
 load_dotenv()
 
@@ -64,9 +68,41 @@ app.include_router(config_router, prefix="/api/chat/config")
 app.include_router(file_upload_router, prefix="/api/chat/upload")
 
 
-if __name__ == "__main__":
+def run_api():
     app_host = os.getenv("APP_HOST", "0.0.0.0")
     app_port = int(os.getenv("APP_PORT", "8000"))
     reload = True if environment == "dev" else False
 
     uvicorn.run(app="main:app", host=app_host, port=app_port, reload=reload)
+
+
+async def main():
+    def info(prefix: str, text: str) -> None:
+        truncated = textwrap.shorten(text, width=255, placeholder="...")
+        print(f"[{prefix}] {truncated}")
+
+    agent = create_agent()
+
+    task = asyncio.create_task(
+        agent.run(
+            input="Write a blog post about physical standards for letters",
+            streaming=True,
+        )
+    )
+
+    async for ev in agent.stream_events():
+        info(ev.name, ev.msg)
+
+    ret: AsyncGenerator = await task
+    async for token in ret:
+        print(token.delta, end="", flush=True)
+
+    # ret: AgentRunResult = await task
+    # print(ret.response.message.content)
+
+
+if __name__ == "__main__":
+    if os.getenv("FAST_API", "false").lower() == "false":
+        asyncio.run(main())
+    else:
+        run_api()

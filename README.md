@@ -1,10 +1,11 @@
-This is a [LlamaIndex](https://www.llamaindex.ai/) multi-agents project using [Workflows](https://docs.llamaindex.ai/en/stable/understanding/workflows/). 
+This is a [LlamaIndex](https://www.llamaindex.ai/) multi-agents project using [Workflows](https://docs.llamaindex.ai/en/stable/understanding/workflows/).
 
 ## Overview
 
 This example is using three agents to generate a blog post:
-- a researcher that retrieves content via a RAG pipeline, 
-- a writer that specializes in writing blog posts and 
+
+- a researcher that retrieves content via a RAG pipeline,
+- a writer that specializes in writing blog posts and
 - a reviewer that is reviewing the blog post.
 
 There are three different methods how the agents can interact to reach their goal:
@@ -38,6 +39,8 @@ poetry run python main.py
 ```
 
 Per default, the example is using the explicit workflow. You can change the example by setting the `EXAMPLE_TYPE` environment variable to `choreography` or `orchestrator`.
+
+To add an API endpoint, set the `FAST_API` environment variable to `true`.
 
 ## Learn More
 
