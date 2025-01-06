@@ -37,6 +37,7 @@ Third, run the agents in one command:
 ```shell
 poetry run python main.py
 ```
+The | operation in complex workflows needs python version 3.10 or higher. 
 
 Per default, the example is using the explicit workflow. You can change the example by setting the `EXAMPLE_TYPE` environment variable to `choreography` or `orchestrator`.
 
